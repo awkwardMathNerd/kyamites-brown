@@ -1,0 +1,2 @@
+nrfutil pkg generate --hw-version 52 --sd-req=0x00 --application build/zephyr/zephyr.hex --application-version 1 package.zip
+nrfutil dfu usb-serial -pkg package.zip -p /dev/tty.usbmodemCEF79B1C6B0D1
