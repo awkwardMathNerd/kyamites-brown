@@ -1,4 +1,5 @@
 #ignore files
+Kconfig.redundant
 *.DS_Store
 **/build
 *.json
