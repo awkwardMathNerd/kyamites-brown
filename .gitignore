@@ -1,0 +1,5 @@
+#ignore files
+*.DS_Store
+**/build
+*.json
+**/__pycache__
