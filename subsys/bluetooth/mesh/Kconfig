@@ -21,6 +21,8 @@ config BT_MESH_MOD_ACKD_TIMEOUT_PER_HOP
 	  The timeout in milliseconds that the model adds per hop
 	  to the base response time.
 
+rsource "boards/Kconfig"
+
 config BT_MESH_SENSOR
 	bool
 

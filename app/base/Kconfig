@@ -1,10 +1,8 @@
 ###############################################################
-# @file Kconfig.kyamites-brown
+# @file app/base/Kconfig
 # @author Lachlan Smith - s4482220
 # @date 08032021
-# @brief The Methane Project
+# @brief Project
 ###############################################################
 
-rsource "subsys/Kconfig"
-rsource "drivers/Kconfig"
-
+source "Kconfig.zephyr"

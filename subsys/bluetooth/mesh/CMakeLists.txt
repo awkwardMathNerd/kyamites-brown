@@ -1,10 +1,7 @@
-#
-# Copyright (c) 2018 Nordic Semiconductor
-#
-# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
-#
 
 zephyr_library()
+
+add_subdirectory(boards)
 
 zephyr_library_sources(model_utils.c)
 

@@ -1,8 +1,8 @@
 ###############################################################
-# @file apps/project/Kconfig
+# @file apps/server/Kconfig
 # @author Lachlan Smith - s4482220
 # @date 08032021
-# @brief Project
+# @brief The Methane Project
 ###############################################################
 
 source "Kconfig.zephyr"

@@ -1,0 +1,4 @@
+
+config BT_MESH_BOARD_ARGON_PROV
+    bool "Configure provision on particle argon"
+    depends on BT_MESH

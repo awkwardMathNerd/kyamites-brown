@@ -1,7 +1,6 @@
+name: kyamites-brown
 build:
   cmake: .
   kconfig: Kconfig.kyamites-brown
   settings:
-    board_root: .
     dts_root: .
-    module_ext_root: .

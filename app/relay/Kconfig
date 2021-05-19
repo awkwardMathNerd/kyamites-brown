@@ -1,9 +1,8 @@
 ###############################################################
-# @file apps/project/Kconfig
+# @file app/relay/Kconfig
 # @author Lachlan Smith - s4482220
 # @date 08032021
 # @brief Project
 ###############################################################
 
-rsource "../../mylib/Kconfig.mylib"
 source "Kconfig.zephyr"

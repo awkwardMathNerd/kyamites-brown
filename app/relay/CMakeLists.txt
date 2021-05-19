@@ -2,11 +2,9 @@
 
 cmake_minimum_required(VERSION 3.13.1)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(server)
+project(client)
 
-include_directories(inc)
+set(MYLIB_DIR ../../mylib)
+include(${MYLIB_DIR}/CMakeLists.txt)
 
-target_sources(app PRIVATE 
-    src/main.c
-    src/methane_sensor_srv_handler.c
-)
+target_sources(app PRIVATE src/main.c)
