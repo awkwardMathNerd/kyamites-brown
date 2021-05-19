@@ -1,4 +1,0 @@
-
-
-config CRICKIT
-    bool "Configure adafruit crickit shield"

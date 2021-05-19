@@ -1,0 +1,5 @@
+
+
+config CRICKIT
+    bool "Configure adafruit crickit shield"
+    depends on I2C

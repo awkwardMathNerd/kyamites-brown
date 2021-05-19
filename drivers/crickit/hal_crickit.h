@@ -13,6 +13,9 @@
 
 struct crickit_data {
     const struct device *i2c;
+
+    uint16_t ppm;
+    int16_t volts;
 };
 
 struct crickit_cfg {

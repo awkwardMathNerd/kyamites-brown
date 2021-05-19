@@ -32,10 +32,18 @@ LOG_MODULE_REGISTER(crickit, CONFIG_LOG_DEFAULT_LEVEL);
 
 int hal_crickit_vent(const struct device *dev) {
 
+    // const struct crickit_cfg * const cfg = dev->config;
+	// struct crickit_data *data = dev->data;
+    // const struct crickit_api *api = dev->api;
+
     return 0;
 }
 
 int hal_crickit_sample(const struct device *dev) {
+
+    // const struct crickit_cfg * const cfg = dev->config;
+	// struct crickit_data *data = dev->data;
+    // const struct crickit_api *api = dev->api;
 
     return 0;
 }

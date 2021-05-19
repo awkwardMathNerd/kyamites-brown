@@ -5,6 +5,4 @@
 # @brief Project
 ###############################################################
 
-rsource "drivers/Kconfig"
-
 source "Kconfig.zephyr"

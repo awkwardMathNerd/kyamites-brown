@@ -1,0 +1,88 @@
+#
+# Copyright (c) 2019 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+if BT_MESH
+
+config BT_MESH_MOD_ACKD_TIMEOUT_BASE
+	int "The base timeout for acknowledged messages"
+	default 3000
+	help
+	  The base timeout in milliseconds that the model waits for the response
+	  if it is required. The response is typically a status message.
+	  Mesh Profile recommends the waiting time a minimum of 30 seconds.
+
+config BT_MESH_MOD_ACKD_TIMEOUT_PER_HOP
+	int "The per hop timeout for acknowledged messages"
+	default 50
+	help
+	  The timeout in milliseconds that the model adds per hop
+	  to the base response time.
+
+config BT_MESH_SENSOR
+	bool
+
+config BT_MESH_SENSOR_LABELS
+	bool "Enable Sensor labels"
+	help
+	  Controls the availability of sensor labels for channels and units
+
+config BT_MESH_SENSOR_ALL_TYPES
+	bool "Force all sensor types to be known"
+	default y if BT_MESH_SENSOR_CLI
+	help
+	  Forces all sensor types to be included in the build. This is
+	  useful if the set of sensor types that will be used is unknown at
+	  compile time, but increases ROM usage by about 3.5kB (4kB if labels
+	  are enabled).
+
+config BT_MESH_SENSOR_CHANNELS_MAX
+	int "Max sensor channels"
+	default 5
+	help
+	  Max number of channels in a single sensor. Matches the largest known
+	  number by default.
+
+config BT_MESH_SENSOR_CHANNEL_ENCODED_SIZE_MAX
+	int "Max sensor channel encoded length"
+	default 4
+	help
+	  Longest encoded representation of a single sensor channel.
+	  Matches the largest known size by default.
+
+menuconfig BT_MESH_SENSOR_SRV
+	bool "Sensor Server"
+	select BT_MESH_SENSOR
+	help
+	  Enable mesh Sensor Server model.
+
+if BT_MESH_SENSOR_SRV
+
+config BT_MESH_SENSOR_SRV_SENSORS_MAX
+	int "Max number of sensors per server"
+	default 4
+	range 1 189
+	help
+	  The upper boundary of a Sensor Server's sensor count.
+
+
+config BT_MESH_SENSOR_SRV_SETTINGS_MAX
+	int "Max setting parameters per sensor in a server"
+	default 8
+	range 0 189
+	help
+	  Max number of settings parameters each sensor in the
+	  server can have. Only affects the stack allocated response buffer
+	  for the Settings Get message.
+
+endif
+
+config BT_MESH_SENSOR_CLI
+	bool "Sensor Client"
+	select BT_MESH_SENSOR
+	help
+	  Enable mesh Sensor Client model.
+
+endif

@@ -1,3 +1,20 @@
+/**
+***************************************************************
+* @file apps/p3/MOBILE/src/main.c
+* @author Lachlan Smith - s4482220
+* @date 08032021
+* @brief Practical 3
+*************************************************************** */
+
+/* Includes --------------------------------------------------- */
+
+#include <zephyr.h>
+#include <device.h>
+#include <sys/printk.h>
+
+/* Typedefs --------------------------------------------------- */
+
+/* Defines ---------------------------------------------------- */
 
 #include <zephyr.h>
 #include <device.h>
@@ -7,142 +24,113 @@
 #include <settings/settings.h>
 
 #include <bluetooth/bluetooth.h>
-// #include <bluetooth/mesh/models.h>
+#include <bluetooth/mesh/models.h>
 #include <bluetooth/mesh.h>
 
-static struct bt_mesh_health_srv health_srv = {
-};
+/* Macros ----------------------------------------------------- */
 
-BT_MESH_HEALTH_PUB_DEFINE(health_pub, 0);
+/* Variables -------------------------------------------------- */
 
-static struct bt_mesh_model_pub gen_level_pub;
-static struct bt_mesh_model_pub gen_onoff_pub;
+// static const struct bt_mesh_sensor_column columns[] = {
+// 	{ { 0 }, { 20 } },
+// 	{ { 20 }, { 25 } },
+// 	{ { 25 }, { 30 } },
+// 	{ { 30 }, { 100 } },
+// };
 
-static void gen_onoff_get(struct bt_mesh_model *model,
-			  struct bt_mesh_msg_ctx *ctx,
-			  struct net_buf_simple *buf)
-{
-}
+static const struct device *crickit;
+// static uint32_t tot_temp_samps;
+// static uint32_t col_samps[ARRAY_SIZE(columns)];
 
-static void gen_onoff_set(struct bt_mesh_model *model,
-			  struct bt_mesh_msg_ctx *ctx,
-			  struct net_buf_simple *buf)
-{
-	
-}
+static int32_t prev_pres;
 
-static void gen_onoff_set_unack(struct bt_mesh_model *model,
-				struct bt_mesh_msg_ctx *ctx,
-				struct net_buf_simple *buf)
-{
-}
+/* Prototypes ------------------------------------------------ */
 
-static const struct bt_mesh_model_op gen_onoff_op[] = {
-	{ BT_MESH_MODEL_OP_2(0x82, 0x01), 0, gen_onoff_get },
-	{ BT_MESH_MODEL_OP_2(0x82, 0x02), 2, gen_onoff_set },
-	{ BT_MESH_MODEL_OP_2(0x82, 0x03), 2, gen_onoff_set_unack },
-	BT_MESH_MODEL_OP_END,
-};
+static int crickit_methane_sensor_voltage_get(struct bt_mesh_sensor *sensor,
+			 struct bt_mesh_msg_ctx *ctx, struct sensor_value *rsp) {
+				 
+	// int err;
 
-static void gen_level_get(struct bt_mesh_model *model,
-			  struct bt_mesh_msg_ctx *ctx,
-			  struct net_buf_simple *buf)
-{
-}
+	// sensor_sample_fetch(dev);
 
-static void gen_level_set(struct bt_mesh_model *model,
-			  struct bt_mesh_msg_ctx *ctx,
-			  struct net_buf_simple *buf)
-{
-}
+	// err = sensor_channel_get(dev, SENSOR_CHAN_DIE_TEMP, rsp);
 
-static void gen_level_set_unack(struct bt_mesh_model *model,
-				struct bt_mesh_msg_ctx *ctx,
-				struct net_buf_simple *buf)
-{
-}
+	// if (err) {
+	// 	printk("Error getting temperature sensor data (%d)\n", err);
+	// 	return err;
+	// }
 
-static void gen_delta_set(struct bt_mesh_model *model,
-			  struct bt_mesh_msg_ctx *ctx,
-			  struct net_buf_simple *buf)
-{
-}
+	// for (int i = 0; i < ARRAY_SIZE(columns); ++i) {
+	// 	if (bt_mesh_sensor_value_in_column(rsp, &columns[i])) {
+	// 		col_samps[i]++;
+	// 		break;
+	// 	}
+	// }
 
-static void gen_delta_set_unack(struct bt_mesh_model *model,
-				struct bt_mesh_msg_ctx *ctx,
-				struct net_buf_simple *buf)
-{
-}
-
-static void gen_move_set(struct bt_mesh_model *model,
-			 struct bt_mesh_msg_ctx *ctx,
-			 struct net_buf_simple *buf)
-{
-}
-
-static void gen_move_set_unack(struct bt_mesh_model *model,
-			       struct bt_mesh_msg_ctx *ctx,
-			       struct net_buf_simple *buf)
-{
-}
-
-static const struct bt_mesh_model_op gen_level_op[] = {
-	{ BT_MESH_MODEL_OP_2(0x82, 0x05), 0, gen_level_get },
-	{ BT_MESH_MODEL_OP_2(0x82, 0x06), 3, gen_level_set },
-	{ BT_MESH_MODEL_OP_2(0x82, 0x07), 3, gen_level_set_unack },
-	{ BT_MESH_MODEL_OP_2(0x82, 0x09), 5, gen_delta_set },
-	{ BT_MESH_MODEL_OP_2(0x82, 0x0a), 5, gen_delta_set_unack },
-	{ BT_MESH_MODEL_OP_2(0x82, 0x0b), 3, gen_move_set },
-	{ BT_MESH_MODEL_OP_2(0x82, 0x0c), 3, gen_move_set_unack },
-	BT_MESH_MODEL_OP_END,
-};
-
-static struct bt_mesh_model root_models[] = {
-	BT_MESH_MODEL_CFG_SRV,
-	BT_MESH_MODEL_HEALTH_SRV(&health_srv, &health_pub),
-	BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_ONOFF_SRV, gen_onoff_op,
-		      &gen_onoff_pub, NULL),
-	BT_MESH_MODEL(BT_MESH_MODEL_ID_GEN_LEVEL_SRV, gen_level_op,
-		      &gen_level_pub, NULL),
-};
-
-static struct bt_mesh_elem elements[] = {
-	BT_MESH_ELEM(0, root_models, BT_MESH_MODEL_NONE),
-};
-
-static const struct bt_mesh_comp comp = {
-	.cid = BT_COMP_ID_LF,
-	.elem = elements,
-	.elem_count = ARRAY_SIZE(elements),
-};
-
-static int output_number(bt_mesh_output_action_t action, uint32_t number)
-{
-	printk("OOB Number: %u\n", number);
+	// tot_temp_samps++;
 
 	return 0;
 }
 
-static void prov_complete(uint16_t net_idx, uint16_t addr)
-{
-
-}
-
-static void prov_reset(void)
-{
-	bt_mesh_prov_enable(BT_MESH_PROV_ADV | BT_MESH_PROV_GATT);
-}
-
-static const uint8_t dev_uuid[16] = { 0xdd, 0xdd };
-
-static const struct bt_mesh_prov prov = {
-	.uuid = dev_uuid,
-	.output_size = 4,
-	.output_actions = BT_MESH_DISPLAY_NUMBER,
-	.output_number = output_number,
-	.complete = prov_complete,
-	.reset = prov_reset,
+static struct bt_mesh_sensor crickit_methane_sensor_voltage = {
+	.type = &bt_mesh_sensor_avg_output_voltage,
+	.get = crickit_methane_sensor_voltage_get,
 };
+
+static struct bt_mesh_sensor *const sensors[] = {
+	&crickit_methane_sensor_voltage,
+};
+
+static struct bt_mesh_sensor_srv sensor_srv =
+	BT_MESH_SENSOR_SRV_INIT(sensors, ARRAY_SIZE(sensors));
+
+static bool attention;
+
+static void attention_on(struct bt_mesh_model *mod)
+{
+	attention = true;
+}
+
+static void attention_off(struct bt_mesh_model *mod)
+{
+	/* Will stop rescheduling blink timer */
+	attention = false;
+}
+
+static const struct bt_mesh_health_srv_cb health_srv_cb = {
+	.attn_on = attention_on,
+	.attn_off = attention_off,
+};
+
+static struct bt_mesh_health_srv health_srv = {
+	.cb = &health_srv_cb,
+};
+
+BT_MESH_HEALTH_PUB_DEFINE(health_pub, 0);
+
+static struct bt_mesh_elem elements[] = {
+	BT_MESH_ELEM(1,
+		     BT_MESH_MODEL_LIST(BT_MESH_MODEL_CFG_SRV,
+					BT_MESH_MODEL_HEALTH_SRV(&health_srv, &health_pub),
+					BT_MESH_MODEL_SENSOR_SRV(&sensor_srv)),
+		     BT_MESH_MODEL_NONE),
+};
+
+static const struct bt_mesh_comp comp = {
+	.cid = CONFIG_BT_COMPANY_ID,
+	.elem = elements,
+	.elem_count = ARRAY_SIZE(elements),
+};
+
+const struct bt_mesh_comp *model_handler_init(void) {
+
+	crickit = device_get_binding(DT_LABEL(DT_INST(0, adafruit_crickit)));
+	if (!crickit) {
+		printk("failed get CRICKIT device\r\n");
+	}
+
+	return &comp;
+}
 
 static void bt_ready(int err)
 {
@@ -153,7 +141,7 @@ static void bt_ready(int err)
 
 	printk("Bluetooth initialized\n");
 
-	err = bt_mesh_init(&prov, &comp);
+	err = bt_mesh_init(bt_mesh_dk_prov_init(), model_handler_init());
 	if (err) {
 		printk("Initializing mesh failed (err %d)\n", err);
 		return;
@@ -175,6 +163,7 @@ void main(void) {
 
 	const struct device *usb = device_get_binding("CDC_ACM_0");
     if (!usb) {
+		printk("failed get USB device\r\n");
         return;
     }
 
@@ -185,16 +174,6 @@ void main(void) {
         return;
     } 
 
-	k_sleep(K_MSEC(10));
-
-	const struct device *crickit = device_get_binding(DT_LABEL(DT_INST(0, adafruit_crickit)));
-	if (!crickit) {
-		return;
-	}
-
-	printk("Initializing...\n");
-
-	/* Initialize the Bluetooth Subsystem */
 	err = bt_enable(bt_ready);
 	if (err) {
 		printk("Bluetooth init failed (err %d)\n", err);
