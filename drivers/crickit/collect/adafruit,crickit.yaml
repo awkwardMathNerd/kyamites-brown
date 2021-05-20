@@ -1,0 +1,7 @@
+
+
+description: Adafruit CRICKIT shield
+
+compatible: "adafruit,crickit"
+
+include: i2c-device.yaml

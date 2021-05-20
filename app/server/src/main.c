@@ -19,7 +19,7 @@
 
 /* Typedefs --------------------------------------------------- */
 
-typedef struct __attribute__((__packed__, __aligned__(4), scalar_storage_order("little-endian"))) {
+typedef struct {
 
     uint16_t volt_out;
     uint16_t volt_ref;
@@ -28,9 +28,10 @@ typedef struct __attribute__((__packed__, __aligned__(4), scalar_storage_order("
 
 /* Defines ---------------------------------------------------- */
 
+#define PUMP_MOTOR                  CRICKIT_MOTOR_A1
+#define VALVE_DRIVE                 CRICKIT_DRIVE1
 #define VOLT_OUT_SIGNAL             CRICKIT_SIGNAL1
 #define VOLT_REF_SIGNAL             CRICKIT_SIGNAL2
-#define POWER_OFF_SIGNAL            CRICKIT_SIGNAL3
 
 /* Macros ----------------------------------------------------- */
 
@@ -70,12 +71,6 @@ int power_off(const struct device *dev) {
 
     int err;
     const struct crickit_api *crickit = dev->api;
-
-    err = crickit->analog_write(dev, POWER_OFF_SIGNAL, 2048);
-    if (err) {
-        LOG_ERR("failed analogue write power off (err %d)", err);
-        return -EIO;
-    }
 
     return 0;
 }
