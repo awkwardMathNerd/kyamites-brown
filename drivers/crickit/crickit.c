@@ -69,15 +69,12 @@ enum {
 };
 #endif
 
-// #ifdef CONFIG_SHIELD_CRICKIT_TIMER
 enum {
   CRICKIT_TIMER_STATUS = 0x00,
   CRICKIT_TIMER_PWM = 0x01,
   CRICKIT_TIMER_FREQ = 0x02,
 };
-// #endif
 
-// #ifdef CONFIG_SHIELD_CRICKIT_ADC
 enum {
   CRICKIT_ADC_STATUS = 0x00,
   CRICKIT_ADC_INTEN = 0x02,
@@ -86,7 +83,6 @@ enum {
   CRICKIT_ADC_WINTHRESH = 0x05,
   CRICKIT_ADC_CHANNEL_OFFSET = 0x07,
 };
-// #endif
 
 #ifdef CONFIG_SHIELD_CRICKIT_SERCOM
 enum {
@@ -197,11 +193,11 @@ int crickit_i2c_write(const struct device *dev, uint8_t base, uint8_t addr, uint
 
 	msg[0].buf = (uint8_t *)reg_addr;
 	msg[0].len = 2;
-	msg[0].flags = I2C_MSG_WRITE;
+	msg[0].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
 
 	msg[1].buf = (uint8_t *)buf;
 	msg[1].len = len;
-	msg[1].flags = I2C_MSG_RESTART | I2C_MSG_WRITE | I2C_MSG_STOP;
+	msg[1].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
 
 	return i2c_transfer(data->i2c, msg, 2, cfg->dev_addr);
 }
@@ -378,7 +374,6 @@ static int crickit_init(const struct device *dev) {
 
 	const struct crickit_cfg * const cfg = dev->config;
 	struct crickit_data *data = dev->data;
-    // const struct crickit_api *api = dev->api;
 
 	data->i2c = device_get_binding(cfg->dev_name);
 	if (data->i2c == NULL) {
@@ -392,6 +387,8 @@ static int crickit_init(const struct device *dev) {
         LOG_ERR("failed read crickit shield SAMD21 device id (err %d)", err);
         return err;
     }
+
+    LOG_INF("Got id %x", id);
 
     if (id != CRICKIT_HW_ID_CODE) {
         LOG_ERR("failed got wrong HW id code (id %x)", id);
