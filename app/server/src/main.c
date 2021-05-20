@@ -55,6 +55,12 @@ void main(void) {
         return;
     }
 
+    // const struct device *dev = device_get_binding(DT_LABEL(DT_NODELABEL(i2c1)));
+    // if (!dev) {
+    //     LOG_ERR("failed get i2c1 binding");
+    //     return;
+    // }
+
 	LOG_INF("Init ok");
 
     for (;;) {
@@ -63,7 +69,7 @@ void main(void) {
 
         crickit->analog_write(dev, CRICKIT_MOTOR_A1, 2048);
 
-        k_sleep(K_MSEC(500));
+        k_sleep(K_MSEC(1500));
     }
 
 }

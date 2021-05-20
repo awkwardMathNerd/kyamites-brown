@@ -13,9 +13,6 @@
         compatible = "adafruit,crickit";
         reg = <0x49>;
         label = "CRICKIT";
-        gpio-controller;
-		#gpio-cells = <2>;
-		ngpios = <16>;
     };
 };
 
