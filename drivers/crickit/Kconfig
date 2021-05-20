@@ -1,5 +1,37 @@
 
 
-config CRICKIT
+menuconfig SHIELD_CRICKIT
     bool "Configure adafruit crickit shield"
     depends on I2C
+
+if SHIELD_CRICKIT
+
+config SHIELD_CRICKIT_GPIO
+    bool "Configure general purpose I/O"
+
+config SHIELD_CRICKIT_STATUS
+    bool "Configure status commands"
+
+config SHIELD_CRICKIT_TIMER
+    bool "Configure PWM"
+
+config SHIELD_CRICKIT_ADC
+    bool "Configure analog-to-digital converts"
+
+config SHIELD_CRICKIT_SERCOM
+    bool "Configure serial communication"
+
+config SHIELD_CRICKIT_NEOPIXEL
+    bool "Configure general purpose I/O"
+
+config SHIELD_CRICKIT_TOUCH
+    bool "Configure touch"
+
+config SHIELD_CRICKIT_KEYPAD
+    bool "Configure general purpose I/O"
+
+config SHIELD_CRICKIT_ENCODER
+    bool "Configure encoder"
+
+endif
+

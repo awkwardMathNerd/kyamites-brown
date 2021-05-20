@@ -4,5 +4,15 @@ description: Adafruit CRICKIT shield
 
 compatible: "adafruit,crickit"
 
-include: i2c-device.yaml
-# include: atmel,sam-i2c-twihs.yaml
+include: [i2c-device.yaml, gpio-controller.yaml]
+
+properties:
+    label:
+      required: true
+
+    "#gpio-cells":
+      const: 2
+
+    ngpios:
+      required: true
+      const: 16
