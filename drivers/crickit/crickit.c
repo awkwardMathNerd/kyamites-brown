@@ -25,6 +25,8 @@
 #define CRICKIT_NUM_PWM         12
 #define CRICKIT_NUM_ADC         8
 
+#define CRICKIT_HW_ID_CODE      0x55
+
 /* Macros ----------------------------------------------------- */
 
 enum {
@@ -59,7 +61,7 @@ enum {
 };
 #endif
 
-#ifdef CONFIG_SHIELD_CRICKIT_STATUS
+// #ifdef CONFIG_SHIELD_CRICKIT_STATUS
 enum {
   CRICKIT_STATUS_HW_ID = 0x01,
   CRICKIT_STATUS_VERSION = 0x02,
@@ -67,7 +69,7 @@ enum {
   CRICKIT_STATUS_TEMP = 0x04,
   CRICKIT_STATUS_SWRST = 0x7F,
 };
-#endif
+// #endif
 
 // #ifdef CONFIG_SHIELD_CRICKIT_TIMER
 enum {
@@ -176,12 +178,47 @@ static const uint8_t crickit_adc[CRICKIT_NUM_ADC] = {
 
 LOG_MODULE_REGISTER(crickit, CONFIG_LOG_DEFAULT_LEVEL);
 
-int crickit_analog_write(const struct device *dev, uint8_t pin, uint16_t value) {
-
-    int err;
+int crickit_i2c_write(const struct device *dev, uint8_t base, uint8_t addr, uint8_t *buf, size_t len) {
 
     const struct crickit_cfg * const cfg = dev->config;
 	struct crickit_data *data = dev->data;
+
+    struct i2c_msg msg[2];
+    uint8_t reg_addr[2] = {base, addr};
+
+	msg[0].buf = (uint8_t *)reg_addr;
+	msg[0].len = 2;
+	msg[0].flags = I2C_MSG_WRITE;
+
+	msg[1].buf = (uint8_t *)buf;
+	msg[1].len = len;
+	msg[1].flags = I2C_MSG_RESTART | I2C_MSG_WRITE | I2C_MSG_STOP;
+
+	return i2c_transfer(data->i2c, msg, 2, cfg->dev_addr);
+}
+
+int crickit_i2c_read(const struct device *dev, uint8_t base, uint8_t addr, uint8_t *buf, size_t len) {
+
+    const struct crickit_cfg * const cfg = dev->config;
+	struct crickit_data *data = dev->data;
+
+    struct i2c_msg msg[2];
+    uint8_t reg_addr[2] = {base, addr};
+
+	msg[0].buf = (uint8_t *)reg_addr;
+	msg[0].len = 2;
+	msg[0].flags = I2C_MSG_WRITE;
+
+	msg[1].buf = (uint8_t *)buf;
+	msg[1].len = len;
+	msg[1].flags = I2C_MSG_RESTART | I2C_MSG_READ | I2C_MSG_STOP;
+
+	return i2c_transfer(data->i2c, msg, 2, cfg->dev_addr);
+}
+
+int crickit_analog_write(const struct device *dev, uint8_t pin, uint16_t value) {
+
+    int err;
 
     int8_t p = -1;
     for (int i = 0; i < CRICKIT_NUM_PWM; i++) {
@@ -194,28 +231,19 @@ int crickit_analog_write(const struct device *dev, uint8_t pin, uint16_t value) 
 
     if (p > -1) {
 
-        uint8_t reg_addr[2] = {
-            CRICKIT_TIMER_BASE, CRICKIT_TIMER_PWM
-        };
-
-        err = i2c_write(data->i2c, reg_addr, sizeof(reg_addr), cfg->dev_addr);
-        if (err) {
-            LOG_ERR("failed analogue write register address on pin %d (err %d)", pin, err);
-            return err;
-        }
-
         uint8_t cmd[3] = {
             (uint8_t)p, (uint8_t)(value >> 8), (uint8_t)value
         };
 
-        err = i2c_write(data->i2c, cmd, sizeof(cmd), cfg->dev_addr);
+        err = crickit_i2c_write(dev, CRICKIT_TIMER_BASE, CRICKIT_TIMER_PWM, cmd, sizeof(cmd));
         if (err) {
-            LOG_ERR("failed analogue write command on pin %d (err %d)", pin, err);
-            return err;
+            LOG_ERR("failed analogue i2c write (err %d)", err);
+            return -EIO;
         }
 
+
     } else {
-        LOG_ERR("tried to read invalid analogue pin");
+        LOG_ERR("tried to write invalid analogue pin");
         return -EINVAL;
     }
 
@@ -225,9 +253,6 @@ int crickit_analog_write(const struct device *dev, uint8_t pin, uint16_t value) 
 int crickit_analog_read(const struct device *dev, uint8_t pin, uint16_t *value) {
 
     int err;
-
-    const struct crickit_cfg * const cfg = dev->config;
-	struct crickit_data *data = dev->data;
 
     uint8_t val[2];
     int8_t p = -1;
@@ -241,14 +266,10 @@ int crickit_analog_read(const struct device *dev, uint8_t pin, uint16_t *value) 
 
     if (p > -1) {
 
-        uint8_t reg_addr[2];
-        reg_addr[0] = CRICKIT_ADC_BASE;
-        reg_addr[1] = CRICKIT_ADC_CHANNEL_OFFSET + p;
-
-        err = i2c_write_read(data->i2c, cfg->dev_addr, reg_addr, sizeof(reg_addr), val, sizeof(val));
+        err = crickit_i2c_read(dev, CRICKIT_ADC_BASE, CRICKIT_ADC_CHANNEL_OFFSET + p, val, sizeof(val));
         if (err) {
-            LOG_ERR("failed analogue read on pin %d (err %d)", pin, err);
-            return err;
+            LOG_ERR("failed analogue i2c read (err %d)", err);
+            return -EIO;
         }
 
         *value = (uint16_t)((val[0] << 8) | val[1]);
@@ -266,9 +287,6 @@ int crickit_pwm_frequency_set(const struct device *dev, uint8_t pin, uint16_t fr
 
     int err;
 
-    const struct crickit_cfg * const cfg = dev->config;
-	struct crickit_data *data = dev->data;
-
     int8_t p = -1;
     for (uint8_t i = 0; i < CRICKIT_NUM_PWM; i++) {
 
@@ -280,24 +298,14 @@ int crickit_pwm_frequency_set(const struct device *dev, uint8_t pin, uint16_t fr
 
     if (p > -1) {
 
-        uint8_t reg_addr[2] = {
-            CRICKIT_TIMER_BASE, CRICKIT_TIMER_FREQ
-        };
-
-        err = i2c_write(data->i2c, reg_addr, sizeof(reg_addr), cfg->dev_addr);
-        if (err) {
-            LOG_ERR("failed pwm frequency set register address write on pin %d (err %d)", pin, err);
-            return err;
-        }
-
         uint8_t cmd[3] = {
             (uint8_t)p, (uint8_t)(freq >> 8), (uint8_t)freq
         };
 
-        err = i2c_write(data->i2c, cmd, sizeof(cmd), cfg->dev_addr);
+        err = crickit_i2c_write(dev, CRICKIT_TIMER_BASE, CRICKIT_TIMER_FREQ, cmd, sizeof(cmd));
         if (err) {
-            LOG_ERR("failed pwm frequency set command on pin %d (err %d)", pin, err);
-            return err;
+            LOG_ERR("failed analogue i2c write (err %d)", err);
+            return -EIO;
         }
     }
 
@@ -318,6 +326,8 @@ int crickit_pwm_frequency_set(const struct device *dev, uint8_t pin, uint16_t fr
  */
 static int crickit_init(const struct device *dev) {
 
+    int err;
+
 	const struct crickit_cfg * const cfg = dev->config;
 	struct crickit_data *data = dev->data;
     // const struct crickit_api *api = dev->api;
@@ -327,6 +337,18 @@ static int crickit_init(const struct device *dev) {
         LOG_DBG("failed to get I2C bus binding");
 		return -EINVAL;
 	}
+
+    uint8_t id;
+    err = crickit_i2c_read(dev, CRICKIT_STATUS_BASE, CRICKIT_STATUS_HW_ID, &id, 1);
+    if (err) {
+        LOG_ERR("failed read crickit shield SAMD21 device id (err %d)", err);
+        return err;
+    }
+
+    if (id != CRICKIT_HW_ID_CODE) {
+        LOG_ERR("failed got wrong HW id code (id %x)", id);
+        return -EIO;
+    }
 
     LOG_INF("Init ok");
 
