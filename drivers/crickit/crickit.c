@@ -45,6 +45,14 @@ enum {
   CRICKIT_ENCODER_BASE = 0x11,
 };
 
+enum {
+  CRICKIT_STATUS_HW_ID = 0x01,
+  CRICKIT_STATUS_VERSION = 0x02,
+  CRICKIT_STATUS_OPTIONS = 0x03,
+  CRICKIT_STATUS_TEMP = 0x04,
+  CRICKIT_STATUS_SWRST = 0x7F,
+};
+
 #ifdef CONFIG_SHIELD_CRICKIT_GPIO
 enum {
   CRICKIT_GPIO_DIRSET_BULK = 0x02,
@@ -60,16 +68,6 @@ enum {
   CRICKIT_GPIO_PULLENCLR = 0x0C,
 };
 #endif
-
-// #ifdef CONFIG_SHIELD_CRICKIT_STATUS
-enum {
-  CRICKIT_STATUS_HW_ID = 0x01,
-  CRICKIT_STATUS_VERSION = 0x02,
-  CRICKIT_STATUS_OPTIONS = 0x03,
-  CRICKIT_STATUS_TEMP = 0x04,
-  CRICKIT_STATUS_SWRST = 0x7F,
-};
-// #endif
 
 // #ifdef CONFIG_SHIELD_CRICKIT_TIMER
 enum {
@@ -178,6 +176,17 @@ static const uint8_t crickit_adc[CRICKIT_NUM_ADC] = {
 
 LOG_MODULE_REGISTER(crickit, CONFIG_LOG_DEFAULT_LEVEL);
 
+/**
+ * @brief i2c write function specific to the CRICKIT macros
+ *
+ * This routine performs two i2c writes, one specifying the 2 byte register 
+ * address the other buffer being written
+ *
+ * @param dev Pointer to the crickit device structure
+ *
+ * @retval 0 If successful.
+ * @retval -EIO General input / output error.
+ */
 int crickit_i2c_write(const struct device *dev, uint8_t base, uint8_t addr, uint8_t *buf, size_t len) {
 
     const struct crickit_cfg * const cfg = dev->config;
@@ -197,6 +206,17 @@ int crickit_i2c_write(const struct device *dev, uint8_t base, uint8_t addr, uint
 	return i2c_transfer(data->i2c, msg, 2, cfg->dev_addr);
 }
 
+/**
+ * @brief i2c read function specific to the CRICKIT macros
+ *
+ * This routine performs i2c write immediately follow an i2c read, 
+ * one specifying the 2 byte register address the other buffer being read
+ *
+ * @param dev Pointer to the crickit device structure
+ *
+ * @retval 0 If successful.
+ * @retval -EIO General input / output error.
+ */
 int crickit_i2c_read(const struct device *dev, uint8_t base, uint8_t addr, uint8_t *buf, size_t len) {
 
     const struct crickit_cfg * const cfg = dev->config;
@@ -216,13 +236,21 @@ int crickit_i2c_read(const struct device *dev, uint8_t base, uint8_t addr, uint8
 	return i2c_transfer(data->i2c, msg, 2, cfg->dev_addr);
 }
 
+/**
+ * @brief Writes to an analogue pin on the CRICKIT board
+ *
+ * @param dev Pointer to the crickit device structure
+ *
+ * @retval 0 If successful.
+ * @retval -EIO General input / output error.
+ * @retval -EINVAL Invalid
+ */
 int crickit_analog_write(const struct device *dev, uint8_t pin, uint16_t value) {
 
     int err;
 
     int8_t p = -1;
     for (int i = 0; i < CRICKIT_NUM_PWM; i++) {
-        
         if (crickit_pwms[i] == pin) {
             p = i;
             break;
@@ -241,15 +269,23 @@ int crickit_analog_write(const struct device *dev, uint8_t pin, uint16_t value) 
             return -EIO;
         }
 
-
     } else {
-        LOG_ERR("tried to write invalid analogue pin");
+        LOG_ERR("tried to write an invalid analogue pin");
         return -EINVAL;
     }
 
     return 0;
 }
 
+/**
+ * @brief Reads from a analogue pin on the CRICKIT board
+ *
+ * @param dev Pointer to the crickit device structure
+ *
+ * @retval 0 If successful.
+ * @retval -EIO General input / output error.
+ * @retval -EINVAL Invalid
+ */
 int crickit_analog_read(const struct device *dev, uint8_t pin, uint16_t *value) {
 
     int err;
@@ -276,13 +312,22 @@ int crickit_analog_read(const struct device *dev, uint8_t pin, uint16_t *value) 
         k_sleep(K_MSEC(1));
 
     } else {
-        LOG_ERR("tried to read invalid analogue pin");
+        LOG_ERR("tried to read an invalid analogue pin");
         return -EINVAL;
     }
 
     return 0;
 }
 
+/**
+ * @brief Set the PWM frequency of an analogue pin
+ *
+ * @param dev Pointer to the crickit device structure
+ *
+ * @retval 0 If successful.
+ * @retval -EIO General input / output error.
+ * @retval -EINVAL Invalid
+ */
 int crickit_pwm_frequency_set(const struct device *dev, uint8_t pin, uint16_t freq) {
 
     int err;
@@ -307,6 +352,9 @@ int crickit_pwm_frequency_set(const struct device *dev, uint8_t pin, uint16_t fr
             LOG_ERR("failed analogue i2c write (err %d)", err);
             return -EIO;
         }
+    } else {
+        LOG_ERR("tried to set an invalid analogue pin");
+        return -EINVAL;
     }
 
     
