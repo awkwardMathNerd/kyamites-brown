@@ -1,0 +1,6 @@
+syntax = "proto2";
+
+message meas_packet_message {
+	required uint32 methane_concentration = 1;
+	required float calibration_value = 2;
+}

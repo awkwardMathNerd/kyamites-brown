@@ -1,0 +1,10 @@
+&uart1 { /* ESP32 */
+    wifi: wifi {
+        compatible = "espressif,esp";
+        label = "WIFI_0";
+
+        status = "okay";
+    };
+
+    current-speed = <115200>;
+};
