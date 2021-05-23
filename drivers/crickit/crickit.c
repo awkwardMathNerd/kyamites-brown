@@ -183,23 +183,23 @@ LOG_MODULE_REGISTER(crickit, CONFIG_LOG_DEFAULT_LEVEL);
  * @retval 0 If successful.
  * @retval -EIO General input / output error.
  */
-int crickit_i2c_write(const struct device *dev, uint8_t base, uint8_t addr, uint8_t *buf, size_t len) {
+int crickit_i2c_write(const struct device *dev, uint8_t base, uint8_t module, 
+                        uint8_t *buf, size_t len) {
 
     const struct crickit_cfg * const cfg = dev->config;
 	struct crickit_data *data = dev->data;
 
-    struct i2c_msg msg[2];
-    uint8_t reg_addr[2] = {base, addr};
+    uint8_t to_write[257];
+    to_write[0] = base;
+    to_write[1] = module;
 
-	msg[0].buf = (uint8_t *)reg_addr;
-	msg[0].len = 2;
-	msg[0].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
+    for (size_t i = 0; i < len; i++) {
 
-	msg[1].buf = (uint8_t *)buf;
-	msg[1].len = len;
-	msg[1].flags = I2C_MSG_WRITE | I2C_MSG_STOP;
+        to_write[i + 2] = buf[i];
+    }
 
-	return i2c_transfer(data->i2c, msg, 2, cfg->dev_addr);
+    return i2c_write(data->i2c, to_write, len + 2, cfg->dev_addr);
+
 }
 
 /**
@@ -213,23 +213,40 @@ int crickit_i2c_write(const struct device *dev, uint8_t base, uint8_t addr, uint
  * @retval 0 If successful.
  * @retval -EIO General input / output error.
  */
-int crickit_i2c_read(const struct device *dev, uint8_t base, uint8_t addr, uint8_t *buf, size_t len) {
+int crickit_i2c_read(const struct device *dev, uint8_t base, uint8_t module, 
+                        uint8_t *buf, size_t len) {
+
+    int err;
 
     const struct crickit_cfg * const cfg = dev->config;
 	struct crickit_data *data = dev->data;
 
-    struct i2c_msg msg[2];
-    uint8_t reg_addr[2] = {base, addr};
+    struct i2c_msg msg;
+    uint8_t reg_addr[2] = {base, module};
 
-	msg[0].buf = (uint8_t *)reg_addr;
-	msg[0].len = 2;
-	msg[0].flags = I2C_MSG_WRITE;
+	msg.buf = (uint8_t *)reg_addr;
+	msg.len = 2;
+	msg.flags = I2C_MSG_WRITE | I2C_MSG_STOP;
 
-	msg[1].buf = (uint8_t *)buf;
-	msg[1].len = len;
-	msg[1].flags = I2C_MSG_RESTART | I2C_MSG_READ | I2C_MSG_STOP;
+    err = i2c_transfer(data->i2c, &msg, 1, cfg->dev_addr);
+    if (err) {
+        LOG_ERR("failed reg addr i2c read");
+        return err;
+    }
 
-	return i2c_transfer(data->i2c, msg, 2, cfg->dev_addr);
+    k_sleep(K_USEC(500));
+
+	msg.buf = (uint8_t *)buf;
+	msg.len = len;
+	msg.flags = I2C_MSG_READ | I2C_MSG_STOP;
+
+    err = i2c_transfer(data->i2c, &msg, 1, cfg->dev_addr);
+    if (err) {
+        LOG_ERR("failed buf i2c read");
+        return err;
+    }
+
+	return 0;
 }
 
 /**
@@ -345,11 +362,11 @@ int crickit_pwm_frequency_set(const struct device *dev, uint8_t pin, uint16_t fr
 
         err = crickit_i2c_write(dev, CRICKIT_TIMER_BASE, CRICKIT_TIMER_FREQ, cmd, sizeof(cmd));
         if (err) {
-            LOG_ERR("failed analogue i2c write (err %d)", err);
+            LOG_ERR("failed frequency set i2c write (err %d)", err);
             return -EIO;
         }
     } else {
-        LOG_ERR("tried to set an invalid analogue pin");
+        LOG_ERR("tried to set an invalid pin");
         return -EINVAL;
     }
 
@@ -381,23 +398,27 @@ static int crickit_init(const struct device *dev) {
 		return -EINVAL;
 	}
 
+    k_sleep(K_MSEC(1000));
+
     uint8_t id;
     err = crickit_i2c_read(dev, CRICKIT_STATUS_BASE, CRICKIT_STATUS_HW_ID, &id, 1);
     if (err) {
-        LOG_ERR("failed read crickit shield SAMD21 device id (err %d)", err);
+        LOG_ERR("failed i2c read HW id (err %d)", err);
         return err;
     }
 
     LOG_INF("Got id %x", id);
 
     if (id != CRICKIT_HW_ID_CODE) {
-        LOG_ERR("failed got wrong HW id code (id %x)", id);
+        LOG_DBG("failed wrong HW id");
         return -EIO;
     }
 
-    LOG_INF("Init ok");
+    k_sleep(K_MSEC(10));  // let it wake up
 
-	return 0;
+    LOG_INF("Init ok");
+    return 0;
+
 }
 
 /**

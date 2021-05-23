@@ -1,0 +1,2 @@
+echo $'NRF52\nSWD\n\n\n0\n/dev/stdout' | JLinkRTTLogger
+
