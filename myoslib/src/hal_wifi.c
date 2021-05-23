@@ -18,12 +18,14 @@
 
 #include "hal_wifi.h"
 
-const struct device *green_led_dev = NULL;
-const struct device *blue_led_dev = NULL;
+LOG_MODULE_REGISTER(hal_wifi);
 
-static struct net_mgmt_event_callback wifi_mgmt_cb;
+const struct device *hal_wifi_green_led_dev = NULL;
+const struct device *hal_wifi_blue_led_dev = NULL;
 
-volatile uint8_t isConnected = 0;
+static struct net_mgmt_event_callback hal_wifi_mgmt_cb;
+
+volatile uint8_t hal_wifi_is_connected = 0;
 
 /**
  * @brief Callback function for WiFi
@@ -37,7 +39,7 @@ volatile uint8_t isConnected = 0;
  *
  * @retval None
  */
-static void wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb,
+static void hal_wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 				    uint32_t mgmt_event, struct net_if *iface) {
                         
 	/* Get status out of callback */
@@ -49,10 +51,12 @@ static void wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 
 			if (!status->status) {
 
-				gpio_pin_set(green_led_dev, GREEN_LED_PIN, 1);
-				gpio_pin_set(blue_led_dev, BLUE_LED_PIN, 0);
-				isConnected = 1;
+				gpio_pin_set(hal_wifi_green_led_dev, HAL_WIFI_GREEN_LED_PIN, 1);
+				gpio_pin_set(hal_wifi_blue_led_dev, HAL_WIFI_BLUE_LED_PIN, 0);
+				hal_wifi_is_connected = 1;
 			}
+
+			LOG_INF("%d", status->status);
 			break;
 		case NET_EVENT_WIFI_DISCONNECT_RESULT:
 			
@@ -76,46 +80,53 @@ static void wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 void hal_wifi_init(void) {
 
     /* Initialize the LEDs */
-    green_led_dev = device_get_binding(GREEN_LED);
-    if (green_led_dev == NULL) {
+    hal_wifi_green_led_dev = device_get_binding(HAL_WIFI_GREEN_LED);
+    if (hal_wifi_green_led_dev == NULL) {
 
         return;
     }
 
-    blue_led_dev = device_get_binding(BLUE_LED);
-    if (blue_led_dev == NULL) {
+    hal_wifi_blue_led_dev = device_get_binding(HAL_WIFI_BLUE_LED);
+    if (hal_wifi_blue_led_dev == NULL) {
 
         return;
     }
 
     int ret;
 
-    ret = gpio_pin_configure(green_led_dev, GREEN_LED_PIN, 
-            GPIO_OUTPUT_ACTIVE | GREEN_LED_FLAGS);
+    ret = gpio_pin_configure(hal_wifi_green_led_dev, HAL_WIFI_GREEN_LED_PIN, 
+            GPIO_OUTPUT_ACTIVE | HAL_WIFI_GREEN_LED_FLAGS);
     if (ret < 0) {
         return;
     }
 
-    ret = gpio_pin_configure(blue_led_dev, BLUE_LED_PIN, 
-            GPIO_OUTPUT_ACTIVE | BLUE_LED_FLAGS);
+    ret = gpio_pin_configure(hal_wifi_blue_led_dev, HAL_WIFI_BLUE_LED_PIN, 
+            GPIO_OUTPUT_ACTIVE | HAL_WIFI_BLUE_LED_FLAGS);
     if (ret < 0) {
         return;
     }
 
     /* Turn the blue LED on and green LED off*/
-    gpio_pin_set(blue_led_dev, BLUE_LED_PIN, 1);
-    gpio_pin_set(green_led_dev, GREEN_LED_PIN, 0);
+    gpio_pin_set(hal_wifi_blue_led_dev, HAL_WIFI_BLUE_LED_PIN, 1);
+    gpio_pin_set(hal_wifi_green_led_dev, HAL_WIFI_GREEN_LED_PIN, 0);
+
+	/* Initialize the callback */
+	net_mgmt_init_event_callback(&hal_wifi_mgmt_cb,
+				     hal_wifi_mgmt_event_handler,
+				     HAL_WIFI_MGMT_EVENTS);
+
+	net_mgmt_add_event_callback(&hal_wifi_mgmt_cb);
 
     /* Send the connect for the stuff */
 	struct net_if *iface = net_if_get_default();
 	static struct wifi_connect_req_params cnx_params;
 	
 	cnx_params.channel = WIFI_CHANNEL_ANY;
-	cnx_params.ssid = WIFI_SSID;
-	cnx_params.ssid_length = strlen(WIFI_SSID);
+	cnx_params.ssid = HAL_WIFI_SSID;
+	cnx_params.ssid_length = strlen(HAL_WIFI_SSID);
 	cnx_params.security = WIFI_SECURITY_TYPE_PSK;
-	cnx_params.psk = WIFI_PSK;
-	cnx_params.psk_length = strlen(WIFI_PSK);
+	cnx_params.psk = HAL_WIFI_PSK;
+	cnx_params.psk_length = strlen(HAL_WIFI_PSK);
 
 	/* Try the connection */
 	if (net_mgmt(NET_REQUEST_WIFI_CONNECT, iface,
@@ -124,7 +135,7 @@ void hal_wifi_init(void) {
 		return;
 	}
 
-	while (isConnected == 0) {
+	while (hal_wifi_is_connected == 0) {
 		k_msleep(100);
 	}
 

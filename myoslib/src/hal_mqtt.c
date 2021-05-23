@@ -11,45 +11,66 @@
 * hal_mqtt_init() - Initialse the MQTT connection to Tago
 * hal_mqtt_publish() - MQTT publishing function 
 ************************************************************
-* INTERNAL FUNCTIONS
-************************************************************
-* mqtt_evt_handler() - Event handler for MQTT actions
-* get_mqtt_payload() - Return the desired payload
-* get_mqtt_topic() - Return the desired topic
-* publish() - MQTT publish function call
-* broker_init() - Initialise the MQTT broker
-* client_init() - Initialise the MQTT client
-* prepare_fds() - Set all fds
-* clear_fds() - Set fd flag to 0
-* wait() - MQTT waiting function to poll the socket
-************************************************************
 */
 
 #include "hal_mqtt.h"
 
-LOG_MODULE_REGISTER(app);
+LOG_MODULE_REGISTER(hal_mqtt);
 
 /* MQTT rx an tx buffers */
-static uint8_t rx_buffer[APP_MQTT_BUFFER_SIZE];
-static uint8_t tx_buffer[APP_MQTT_BUFFER_SIZE];
+static uint8_t hal_mqtt_rx_buffer[HAL_MQTT_APP_MQTT_BUFFER_SIZE];
+static uint8_t hal_mqtt_tx_buffer[HAL_MQTT_APP_MQTT_BUFFER_SIZE];
 
 /* MQTT payload variable */
-static char payload[100];
+static char hal_mqtt_payload[100];
 
 /* MQTT username and passwords */
-struct mqtt_utf8 password;
-struct mqtt_utf8 username;
+struct mqtt_utf8 hal_mqtt_password;
+struct mqtt_utf8 hal_mqtt_username;
 
 /* The MQTT client struct */
-static struct mqtt_client client_ctx;
+static struct mqtt_client hal_mqtt_client_ctx;
 
 /* MQTT Broker details. */
-static struct sockaddr_storage broker;
-static bool connected = false;
+static struct sockaddr_storage hal_mqtt_broker;
+static bool hal_mqtt_connected = false;
 
 /* MQTT FDs */
-struct zsock_pollfd fds[1];
-int nfds;
+struct zsock_pollfd hal_mqtt_fds[1];
+int hal_mqtt_nfds;
+
+/**
+ * @brief Prepard fds
+ *
+ * Sets all file descriptors for operations
+ *
+ * @param client Pointer to the MQTT client struct
+ *
+ * @retval None.
+ */
+void hal_mqtt_prepare_fds(struct mqtt_client *client) {
+
+	if (client->transport.type == MQTT_TRANSPORT_NON_SECURE) {
+		hal_mqtt_fds[0].fd = client->transport.tcp.sock;
+	}
+
+	hal_mqtt_fds[0].events = ZSOCK_POLLIN;
+	hal_mqtt_nfds = 1;
+}
+
+/**
+ * @brief Clear all fds
+ *
+ * All Fds are set to 0
+ *
+ * @param None
+ *
+ * @retval None.
+ */
+void hal_mqtt_clear_fds(void) {
+
+	hal_mqtt_nfds = 0;
+}
 
 /**
  * @brief Callback handler for MQTT
@@ -61,10 +82,8 @@ int nfds;
  *
  * @retval None.
  */
-void mqtt_evt_handler(struct mqtt_client *const client,
+void hal_mqtt_mqtt_evt_handler(struct mqtt_client *const client,
 		      const struct mqtt_evt *evt) {
-
-	int err;
 
 	switch (evt->type) {
 	case MQTT_EVT_CONNACK:
@@ -73,61 +92,27 @@ void mqtt_evt_handler(struct mqtt_client *const client,
 			break;
 		}
 
-		connected = true;
+		hal_mqtt_connected = true;
 		LOG_INF("MQTT client connected!");
 
 		break;
 
 	case MQTT_EVT_DISCONNECT:
-		// LOG_INF("MQTT client disconnected %d", evt->result);
-
-		connected = false;
-		clear_fds();
-
-		break;
-
-	case MQTT_EVT_PUBACK:
-		if (evt->result != 0) {
-			// LOG_ERR("MQTT PUBACK error %d", evt->result);
-			break;
-		}
-
-		// LOG_INF("PUBACK packet id: %u", evt->param.puback.message_id);
+		hal_mqtt_connected = false;
+		hal_mqtt_clear_fds();
 
 		break;
 
 	case MQTT_EVT_PUBREC:
 		if (evt->result != 0) {
-			// LOG_ERR("MQTT PUBREC error %d", evt->result);
 			break;
 		}
-
-		// LOG_INF("PUBREC packet id: %u", evt->param.pubrec.message_id);
 
 		const struct mqtt_pubrel_param rel_param = {
 			.message_id = evt->param.pubrec.message_id
 		};
 
-		err = mqtt_publish_qos2_release(client, &rel_param);
-		if (err != 0) {
-			// LOG_ERR("Failed to send MQTT PUBREL: %d", err);
-		}
-
-		break;
-
-	case MQTT_EVT_PUBCOMP:
-		if (evt->result != 0) {
-			// LOG_ERR("MQTT PUBCOMP error %d", evt->result);
-			break;
-		}
-
-		// LOG_INF("PUBCOMP packet id: %u",
-			// evt->param.pubcomp.message_id);
-
-		break;
-
-	case MQTT_EVT_PINGRESP:
-		// LOG_INF("PINGRESP packet");
+		mqtt_publish_qos2_release(client, &rel_param);
 		break;
 
 	default:
@@ -144,9 +129,9 @@ void mqtt_evt_handler(struct mqtt_client *const client,
  *
  * @retval char* pyload string
  */
-static char *get_mqtt_payload(enum mqtt_qos qos) {
+static char *hal_mqtt_get_mqtt_payload(enum mqtt_qos qos) {
 
-	return payload;
+	return hal_mqtt_payload;
 }
 
 /**
@@ -158,7 +143,7 @@ static char *get_mqtt_payload(enum mqtt_qos qos) {
  *
  * @retval char* topic string
  */
-static char *get_mqtt_topic(void) {
+static char *hal_mqtt_get_mqtt_topic(void) {
 
 	return "methane";
 }
@@ -174,13 +159,13 @@ static char *get_mqtt_topic(void) {
  *
  * @retval The success integer from mqtt_publish()
  */
-int publish(struct mqtt_client *client, enum mqtt_qos qos) {
+int hal_mqtt_publish_internal(struct mqtt_client *client, enum mqtt_qos qos) {
 	struct mqtt_publish_param param;
 
 	param.message.topic.qos = qos;
-	param.message.topic.topic.utf8 = (uint8_t *)get_mqtt_topic();
+	param.message.topic.topic.utf8 = (uint8_t *)hal_mqtt_get_mqtt_topic();
 	param.message.topic.topic.size = strlen(param.message.topic.topic.utf8);
-	param.message.payload.data = get_mqtt_payload(qos);
+	param.message.payload.data = hal_mqtt_get_mqtt_payload(qos);
 	param.message.payload.len = strlen(param.message.payload.data);
 	param.message_id = sys_rand32_get();
 	param.message_id = 1;
@@ -199,13 +184,13 @@ int publish(struct mqtt_client *client, enum mqtt_qos qos) {
  *
  * @retval None.
  */
-void broker_init(void) {
+void hal_mqtt_broker_init(void) {
 
-	struct sockaddr_in *broker4 = (struct sockaddr_in *)&broker;
+	struct sockaddr_in *broker4 = (struct sockaddr_in *)&hal_mqtt_broker;
 
 	broker4->sin_family = AF_INET;
-	broker4->sin_port = htons(SERVER_PORT);
-	zsock_inet_pton(AF_INET, SERVER_ADDR, &broker4->sin_addr);
+	broker4->sin_port = htons(HAL_MQTT_SERVER_PORT);
+	zsock_inet_pton(AF_INET, HAL_MQTT_SERVER_ADDR, &broker4->sin_addr);
 }
 
 /**
@@ -218,69 +203,35 @@ void broker_init(void) {
  *
  * @retval None.
  */
-void client_init(struct mqtt_client *client) {
+void hal_mqtt_client_init(struct mqtt_client *client) {
 
 	mqtt_client_init(client);
 
-	broker_init();
+	hal_mqtt_broker_init();
 
-	password.utf8 = (uint8_t *)MQTT_PASSWORD;
-	password.size = strlen(MQTT_PASSWORD);
+	hal_mqtt_password.utf8 = (uint8_t *)HAL_MQTT_PASSWORD;
+	hal_mqtt_password.size = strlen(HAL_MQTT_PASSWORD);
 
-	username.utf8 = (uint8_t *)MQTT_USERNAME;
-	username.size = strlen(MQTT_USERNAME);
+	hal_mqtt_username.utf8 = (uint8_t *)HAL_MQTT_USERNAME;
+	hal_mqtt_username.size = strlen(HAL_MQTT_USERNAME);
 
 
 	/* MQTT client configuration */
-	client->broker = &broker;
-	client->evt_cb = mqtt_evt_handler;
-	client->client_id.utf8 = (uint8_t *)MQTT_CLIENTID;
-	client->client_id.size = strlen(MQTT_CLIENTID);
-	client->password = &password;
-	client->user_name = &username;
-	//client->protocol_version = MQTT_VERSION_3_1_1;
+	client->broker = &hal_mqtt_broker;
+	client->evt_cb = hal_mqtt_mqtt_evt_handler;
+	client->client_id.utf8 = (uint8_t *)HAL_MQTT_CLIENTID;
+	client->client_id.size = strlen(HAL_MQTT_CLIENTID);
+	client->password = &hal_mqtt_password;
+	client->user_name = &hal_mqtt_username;
 
 	/* MQTT buffers configuration */
-	client->rx_buf = rx_buffer;
-	client->rx_buf_size = sizeof(rx_buffer);
-	client->tx_buf = tx_buffer;
-	client->tx_buf_size = sizeof(tx_buffer);
+	client->rx_buf = hal_mqtt_rx_buffer;
+	client->rx_buf_size = sizeof(hal_mqtt_rx_buffer);
+	client->tx_buf = hal_mqtt_tx_buffer;
+	client->tx_buf_size = sizeof(hal_mqtt_tx_buffer);
 
 	/* MQTT transport configuration */
 	client->transport.type = MQTT_TRANSPORT_NON_SECURE;
-}
-
-/**
- * @brief Prepard fds
- *
- * Sets all file descriptors for operations
- *
- * @param client Pointer to the MQTT client struct
- *
- * @retval None.
- */
-void prepare_fds(struct mqtt_client *client) {
-
-	if (client->transport.type == MQTT_TRANSPORT_NON_SECURE) {
-		fds[0].fd = client->transport.tcp.sock;
-	}
-
-	fds[0].events = ZSOCK_POLLIN;
-	nfds = 1;
-}
-
-/**
- * @brief Clear all fds
- *
- * All Fds are set to 0
- *
- * @param None
- *
- * @retval None.
- */
-void clear_fds(void) {
-
-	nfds = 0;
 }
 
 /**
@@ -292,12 +243,12 @@ void clear_fds(void) {
  *
  * @retval Return status from zsock_poll
  */
-int wait(int timeout) {
+int hal_mqtt_wait(int timeout) {
 
 	int ret = 0;
 
-	if (nfds > 0) {
-		ret = zsock_poll(fds, nfds, timeout);
+	if (hal_mqtt_nfds > 0) {
+		ret = zsock_poll(hal_mqtt_fds, hal_mqtt_nfds, timeout);
 		if (ret < 0) {
 			LOG_ERR("poll error: %d", errno);
 		}
@@ -317,7 +268,7 @@ int wait(int timeout) {
  *
  * @retval None.
  */
-void hal_payload_update(float vref, uint32_t concentration) {
+void hal_mqtt_payload_update(float vref, uint32_t concentration) {
 
     uint8_t buff[100];
     meas_packet_message message = meas_packet_message_init_zero;
@@ -332,9 +283,9 @@ void hal_payload_update(float vref, uint32_t concentration) {
 
         for (int i = 0; i < stream.bytes_written; i++) {
 
-            sprintf(payload + (2 * i), "%02x", buff[i]);
+            sprintf(hal_mqtt_payload + (2 * i), "%02x", buff[i]);
         }
-        payload[2*stream.bytes_written] = 0;
+        hal_mqtt_payload[2*stream.bytes_written] = 0;
     }
 }
 
@@ -350,13 +301,13 @@ void hal_payload_update(float vref, uint32_t concentration) {
  */
 void hal_mqtt_init(void) {
 
-    client_init(&client_ctx);
-	LOG_INF("CONNECT: %d", mqtt_connect(&client_ctx));
+    hal_mqtt_client_init(&hal_mqtt_client_ctx);
+	LOG_INF("CONNECT: %d", mqtt_connect(&hal_mqtt_client_ctx));
 
-	prepare_fds(&client_ctx);
+	hal_mqtt_prepare_fds(&hal_mqtt_client_ctx);
 
-	if (wait(2000)) {
-		mqtt_input(&client_ctx);
+	if (hal_mqtt_wait(2000)) {
+		mqtt_input(&hal_mqtt_client_ctx);
 	}
 }
 
@@ -370,5 +321,5 @@ void hal_mqtt_init(void) {
  */
 void hal_mqtt_publish(void) {
 
-    LOG_INF("Publish: %d", publish(&client_ctx, 1));
+    LOG_INF("Publish: %d", hal_mqtt_publish_internal(&hal_mqtt_client_ctx, 1));
 }
