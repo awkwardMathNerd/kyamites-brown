@@ -9,9 +9,8 @@ set(MYOSLIB_DIR ../../myoslib)
 include(${MYOSLIB_DIR}/CMakeLists.txt)
 
 # define a list of myoslibs used
-list(APPEND myoslib_srcs
-)
+list(APPEND myoslib_srcs)
 
 # compile our source code with myoslibs
-#target_sources(app PRIVATE src/main.c ${myoslib_srcs})
-target_sources(app PRIVATE src/main.c)
+target_sources(app PRIVATE src/main.c ${myoslib_srcs})
+#target_sources(app PRIVATE src/main.c)
