@@ -5,6 +5,5 @@
 # @brief The Methane Project
 ###############################################################
 
-rsource "subsys/Kconfig"
 rsource "drivers/Kconfig"
 
