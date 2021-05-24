@@ -28,6 +28,31 @@ static struct net_mgmt_event_callback hal_wifi_mgmt_cb;
 volatile uint8_t hal_wifi_is_connected = 0;
 
 /**
+ * Send the Wifi connect message
+ * @param None
+ * @ret None
+ */
+void hal_wifi_perform_connect(void) {
+
+	struct net_if *iface = net_if_get_default();
+	static struct wifi_connect_req_params cnx_params;
+	
+	cnx_params.channel = WIFI_CHANNEL_ANY;
+	cnx_params.ssid = HAL_WIFI_SSID;
+	cnx_params.ssid_length = strlen(HAL_WIFI_SSID);
+	cnx_params.security = WIFI_SECURITY_TYPE_PSK;
+	cnx_params.psk = HAL_WIFI_PSK;
+	cnx_params.psk_length = strlen(HAL_WIFI_PSK);
+
+	/* Try the connection */
+	if (net_mgmt(NET_REQUEST_WIFI_CONNECT, iface,
+		     &cnx_params, sizeof(struct wifi_connect_req_params))) {
+		
+		return;
+	}
+}
+
+/**
  * @brief Callback function for WiFi
  *
  * Handler function for all WiFi callbacks, sets LED pins accordingly to 
@@ -54,6 +79,10 @@ static void hal_wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 				gpio_pin_set(hal_wifi_green_led_dev, HAL_WIFI_GREEN_LED_PIN, 1);
 				gpio_pin_set(hal_wifi_blue_led_dev, HAL_WIFI_BLUE_LED_PIN, 0);
 				hal_wifi_is_connected = 1;
+			} else {
+
+				/* Rety the connect message */
+				hal_wifi_perform_connect();
 			}
 
 			LOG_INF("%d", status->status);
@@ -118,22 +147,7 @@ void hal_wifi_init(void) {
 	net_mgmt_add_event_callback(&hal_wifi_mgmt_cb);
 
     /* Send the connect for the stuff */
-	struct net_if *iface = net_if_get_default();
-	static struct wifi_connect_req_params cnx_params;
-	
-	cnx_params.channel = WIFI_CHANNEL_ANY;
-	cnx_params.ssid = HAL_WIFI_SSID;
-	cnx_params.ssid_length = strlen(HAL_WIFI_SSID);
-	cnx_params.security = WIFI_SECURITY_TYPE_PSK;
-	cnx_params.psk = HAL_WIFI_PSK;
-	cnx_params.psk_length = strlen(HAL_WIFI_PSK);
-
-	/* Try the connection */
-	if (net_mgmt(NET_REQUEST_WIFI_CONNECT, iface,
-		     &cnx_params, sizeof(struct wifi_connect_req_params))) {
-		
-		return;
-	}
+	hal_wifi_perform_connect();
 
 	while (hal_wifi_is_connected == 0) {
 		k_msleep(100);
