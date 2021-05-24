@@ -230,7 +230,7 @@ int crickit_i2c_read(const struct device *dev, uint8_t base, uint8_t module,
 
     err = i2c_transfer(data->i2c, &msg, 1, cfg->dev_addr);
     if (err) {
-        LOG_ERR("failed reg addr i2c read");
+        LOG_ERR("failed reg addr i2c read (err %d)", err);
         return err;
     }
 
@@ -242,7 +242,7 @@ int crickit_i2c_read(const struct device *dev, uint8_t base, uint8_t module,
 
     err = i2c_transfer(data->i2c, &msg, 1, cfg->dev_addr);
     if (err) {
-        LOG_ERR("failed buf i2c read");
+        LOG_ERR("failed buf i2c read (err %d)", err);
         return err;
     }
 

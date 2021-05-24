@@ -31,7 +31,7 @@ typedef struct {
 
 /* Defines ---------------------------------------------------- */
 
-#define PPM_THRES                   500
+#define PPM_THRES                   30
 
 #define PWR_NODE                    DT_ALIAS(pwr)
 #define PWR_LABEL                   DT_GPIO_LABEL(PWR_NODE, gpios)
@@ -42,8 +42,8 @@ typedef struct {
 #define VOLT_REF_SIGNAL             CRICKIT_SIGNAL2
 #define PUMP_CHANNEL1               CRICKIT_MOTOR_A1
 #define PUMP_CHANNEL2               CRICKIT_MOTOR_A2
-#define VALUE_CHANNEL1              CRICKIT_MOTOR_B1
-#define VALUE_CHANNEL2              CRICKIT_MOTOR_B2
+#define VALVE_CHANNEL1              CRICKIT_MOTOR_B1
+#define VALVE_CHANNEL2              CRICKIT_MOTOR_B2
 
 #define M0                          (-2.969362296f)
 #define M1                          (-2.321928095f)
@@ -67,15 +67,7 @@ LOG_MODULE_REGISTER(app, CONFIG_LOG_DEFAULT_LEVEL);
 
 int pwr_timer_init(const struct device *dev) {
 
-    int err;
-
-    err = gpio_pin_configure(dev, PWR_PIN, GPIO_OUTPUT_INACTIVE);
-    if (err) {
-        LOG_ERR("failed configure pwr pin");
-        return err;
-    }
-
-    return 0;
+    return gpio_pin_configure(dev, PWR_PIN, GPIO_OUTPUT_INACTIVE);
 }
 
 static uint32_t convert_voltage_concentration(methane_sensor_t *sensor) {
@@ -101,7 +93,7 @@ static uint32_t convert_voltage_concentration(methane_sensor_t *sensor) {
     return (uint32_t)C;
 }
 
-static float convert_voltage_sample(int16_t raw) {
+static double convert_voltage_sample(int16_t raw) {
 
     double val = (double)((double)(raw) / 310.3f);
 
@@ -196,13 +188,13 @@ int open_valve(const struct device *dev) {
 
     const struct crickit_api *crickit = dev->api;
 
-    err = crickit->analog_write(dev, VALUE_CHANNEL1, 65535);
+    err = crickit->analog_write(dev, VALVE_CHANNEL1, 65535);
     if (err) {
         LOG_ERR("failed open valve channel 1");
         return err;
     }
 
-    err = crickit->analog_write(dev, VALUE_CHANNEL2, 0);
+    err = crickit->analog_write(dev, VALVE_CHANNEL2, 0);
     if (err) {
         LOG_ERR("failed open valve channel 2");
         return err;
@@ -217,13 +209,13 @@ int close_valve(const struct device *dev) {
 
     const struct crickit_api *crickit = dev->api;
 
-    err = crickit->analog_write(dev, VALUE_CHANNEL1, 0);
+    err = crickit->analog_write(dev, VALVE_CHANNEL1, 0);
     if (err) {
         LOG_ERR("failed open valve channel 1");
         return err;
     }
 
-    err = crickit->analog_write(dev, VALUE_CHANNEL2, 0);
+    err = crickit->analog_write(dev, VALVE_CHANNEL2, 0);
     if (err) {
         LOG_ERR("failed open valve channel 2");
         return err;
@@ -243,8 +235,6 @@ void main(void) {
         LOG_ERR("failed get CRICKIT shield binding");
         return;
     }
-
-    LOG_INF("%s %d", PWR_LABEL, PWR_PIN);
 
     const struct device *pwr_bus = device_get_binding(PWR_LABEL);
     if (!pwr_bus) {
@@ -317,7 +307,7 @@ void main(void) {
 
         err = power_off(pwr_bus);
         if (err) {
-            LOG_ERR("failed power off");
+            LOG_ERR("failed configure pwr pin");
         }
 	}
 }
