@@ -128,16 +128,8 @@ int methane_sample_fetch(const struct device *dev, methane_sensor_t *sensor) {
 }
 
 int power_off(const struct device *dev) {
-    
-    int err;
 
-    err = gpio_pin_set(dev, PWR_PIN, 1);
-    if (err) {
-        LOG_ERR("failed power off the device");
-        return err;
-    }
-
-    return 0;
+    return gpio_pin_set(dev, PWR_PIN, 1);
 }
 
 int turn_pump_on(const struct device *dev) {
