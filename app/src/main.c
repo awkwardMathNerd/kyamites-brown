@@ -31,7 +31,8 @@ typedef struct {
 
 /* Defines ---------------------------------------------------- */
 
-#define PPM_THRES                   30
+#define PPM_THRES                   750
+#define VENT_DURATION               120000      // 2 minutes
 
 #define PWR_NODE                    DT_ALIAS(pwr)
 #define PWR_LABEL                   DT_GPIO_LABEL(PWR_NODE, gpios)
@@ -297,6 +298,7 @@ void main(void) {
     int err;
     methane_sensor sensor;
 
+
     const struct device *pwr_bus = device_get_binding(PWR_LABEL);
     if (!pwr_bus) {
         LOG_ERR("failed configure power timer");
@@ -308,28 +310,34 @@ void main(void) {
         return;
     }
 
+    /* Can the device find its crickit shield */
     const struct device *crickit = device_get_binding(DT_LABEL(DT_INST(0, adafruit_crickit)));
     if (!crickit) {
         LOG_ERR("failed to find the CRICKIT board");
         return;
     }
 
+    /* Attempt to connect to the wifi */
     hal_wifi_init();
 	hal_mqtt_init();
 
     LOG_INF("Init ok");
 
+    /* Allow initialisation time to complete */
     k_sleep(K_MSEC(250));
 
+    /* Take methane voltage out and ref measurements  */
     err = methane_sample_fetch(crickit, &sensor);
     if (err) {
         goto OFF;
     }
 
+    /* Convert the measurements into a PPM concentration */
     uint32_t ppm = convert_voltage_concentration(&sensor);
 
     LOG_INF("ppm: %d", ppm);
 
+    /* Push the measurements to the dashboard */
     hal_mqtt_payload_update(sensor.volt_ref, ppm);
     hal_mqtt_publish();
 
@@ -348,8 +356,8 @@ void main(void) {
             goto OFF;
         }
 
-        /* Spend thirty seconds venting */
-        k_sleep(K_MSEC(30000));
+        /* Spend time venting the chamber */
+        k_sleep(K_MSEC(VENT_DURATION));
 
         err = turn_pump_off(crickit);
         if (err) {

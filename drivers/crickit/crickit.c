@@ -141,7 +141,7 @@ enum {
 
 /* Variables -------------------------------------------------- */
 
-
+/* This is a weird type of enumeration */
 static const uint8_t crickit_pwms[CRICKIT_NUM_PWM] = {
     CRICKIT_SERVO4,
     CRICKIT_SERVO3,   
@@ -157,6 +157,7 @@ static const uint8_t crickit_pwms[CRICKIT_NUM_PWM] = {
     CRICKIT_DRIVE1
 };
 
+/* This is a weird type of enumeration */
 static const uint8_t crickit_adc[CRICKIT_NUM_ADC] = {
     CRICKIT_SIGNAL1, 
     CRICKIT_SIGNAL2, 
@@ -283,7 +284,7 @@ int crickit_analog_write(const struct device *dev, uint8_t pin, uint16_t value) 
         }
 
     } else {
-        LOG_ERR("tried to write an invalid analogue pin");
+        LOG_ERR("tried to write to an invalid analogue pin");
         return -EINVAL;
     }
 
@@ -366,7 +367,7 @@ int crickit_pwm_frequency_set(const struct device *dev, uint8_t pin, uint16_t fr
             return -EIO;
         }
     } else {
-        LOG_ERR("tried to set an invalid pin");
+        LOG_ERR("tried to set an invalid PWM freq pin");
         return -EINVAL;
     }
 
@@ -378,7 +379,7 @@ int crickit_pwm_frequency_set(const struct device *dev, uint8_t pin, uint16_t fr
  * @brief Initialise the crickit driver
  *
  * This routine sets driver data structures, identifies the i2c device 
- * and initialise the SAM09 chip
+ * and checks the Hardware ID
  *
  * @param dev Pointer to the crickit device structure
  *
@@ -392,15 +393,17 @@ static int crickit_init(const struct device *dev) {
 	const struct crickit_cfg * const cfg = dev->config;
 	struct crickit_data *data = dev->data;
 
+    /* Get the I2C bus */
 	data->i2c = device_get_binding(cfg->dev_name);
 	if (data->i2c == NULL) {
-        LOG_DBG("failed to get I2C bus binding");
+        LOG_ERR("failed to get I2C bus binding");
 		return -EINVAL;
 	}
 
     k_sleep(K_MSEC(1000));
 
     uint8_t id;
+    /* Get the shields Hardware ID */
     err = crickit_i2c_read(dev, CRICKIT_STATUS_BASE, CRICKIT_STATUS_HW_ID, &id, 1);
     if (err) {
         LOG_ERR("failed i2c read HW id (err %d)", err);
@@ -410,11 +413,9 @@ static int crickit_init(const struct device *dev) {
     LOG_INF("Got id %x", id);
 
     if (id != CRICKIT_HW_ID_CODE) {
-        LOG_DBG("failed wrong HW id");
+        LOG_ERR("failed HW ID != 55");
         return -EIO;
     }
-
-    k_sleep(K_MSEC(10));  // let it wake up
 
     LOG_INF("Init ok");
     return 0;
