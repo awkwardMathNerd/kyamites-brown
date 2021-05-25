@@ -85,6 +85,7 @@ void hal_mqtt_clear_fds(void) {
 void hal_mqtt_mqtt_evt_handler(struct mqtt_client *const client,
 		      const struct mqtt_evt *evt) {
 
+	/* Switch over event types for MQTT */
 	switch (evt->type) {
 	case MQTT_EVT_CONNACK:
 		if (evt->result != 0) {
@@ -162,6 +163,7 @@ static char *hal_mqtt_get_mqtt_topic(void) {
 int hal_mqtt_publish_internal(struct mqtt_client *client, enum mqtt_qos qos) {
 	struct mqtt_publish_param param;
 
+	/* Setup the publish struct */
 	param.message.topic.qos = qos;
 	param.message.topic.topic.utf8 = (uint8_t *)hal_mqtt_get_mqtt_topic();
 	param.message.topic.topic.size = strlen(param.message.topic.topic.utf8);
@@ -172,6 +174,7 @@ int hal_mqtt_publish_internal(struct mqtt_client *client, enum mqtt_qos qos) {
 	param.dup_flag = 0U;
 	param.retain_flag = 0U;
 
+	/* Publish the data */
 	return mqtt_publish(client, &param);
 }
 
@@ -209,6 +212,7 @@ void hal_mqtt_client_init(struct mqtt_client *client) {
 
 	hal_mqtt_broker_init();
 
+	/* Setup our username and password for TagoIO */
 	hal_mqtt_password.utf8 = (uint8_t *)HAL_MQTT_PASSWORD;
 	hal_mqtt_password.size = strlen(HAL_MQTT_PASSWORD);
 
@@ -247,7 +251,9 @@ int hal_mqtt_wait(int timeout) {
 
 	int ret = 0;
 
+	/* If we have some FDs then poll for some data on them */
 	if (hal_mqtt_nfds > 0) {
+		
 		ret = zsock_poll(hal_mqtt_fds, hal_mqtt_nfds, timeout);
 		if (ret < 0) {
 			LOG_ERR("poll error: %d", errno);
@@ -270,6 +276,7 @@ int hal_mqtt_wait(int timeout) {
  */
 void hal_mqtt_payload_update(float vref, uint32_t concentration) {
 
+	/* Setup the NanoPB structure and buffer */
     uint8_t buff[100];
     meas_packet_message message = meas_packet_message_init_zero;
     pb_ostream_t stream = pb_ostream_from_buffer(buff, sizeof(buff));
@@ -277,10 +284,12 @@ void hal_mqtt_payload_update(float vref, uint32_t concentration) {
     message.methane_concentration =  concentration;
     message.calibration_value = vref;
 
+	/* Do encoding */
     bool status = pb_encode(&stream, meas_packet_message_fields, &message);
 
     if (status) {
 
+		/* It encoded properly so now print out the hex string to the payload */
         for (int i = 0; i < stream.bytes_written; i++) {
 
             sprintf(hal_mqtt_payload + (2 * i), "%02x", buff[i]);
@@ -301,11 +310,12 @@ void hal_mqtt_payload_update(float vref, uint32_t concentration) {
  */
 void hal_mqtt_init(void) {
 
+	/* Setup the client and connect */
     hal_mqtt_client_init(&hal_mqtt_client_ctx);
 	LOG_INF("CONNECT: %d", mqtt_connect(&hal_mqtt_client_ctx));
 
+	/* Wait for the response ACK from connect */
 	hal_mqtt_prepare_fds(&hal_mqtt_client_ctx);
-
 	if (hal_mqtt_wait(2000)) {
 		mqtt_input(&hal_mqtt_client_ctx);
 	}
@@ -321,5 +331,6 @@ void hal_mqtt_init(void) {
  */
 void hal_mqtt_publish(void) {
 
+	/* Perform the internal publish call */
     LOG_INF("Publish: %d", hal_mqtt_publish_internal(&hal_mqtt_client_ctx, 1));
 }

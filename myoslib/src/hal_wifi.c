@@ -1,6 +1,6 @@
 /**
 ************************************************************
-* @file     myoslib/hal_wifi.h   
+* @file     myoslib/hal_wifi.c   
 * @author   Brendon Duncan 44826482
 * @date     23/05/2021
 * @brief    Header file for MQTT functionality
@@ -20,11 +20,14 @@
 
 LOG_MODULE_REGISTER(hal_wifi);
 
+/* LED structures */
 const struct device *hal_wifi_green_led_dev = NULL;
 const struct device *hal_wifi_blue_led_dev = NULL;
 
+/* Callback for the wifi handler */
 static struct net_mgmt_event_callback hal_wifi_mgmt_cb;
 
+/* Flag for whether or not the wifi is connected */
 volatile uint8_t hal_wifi_is_connected = 0;
 
 /**
@@ -37,6 +40,7 @@ void hal_wifi_perform_connect(void) {
 	struct net_if *iface = net_if_get_default();
 	static struct wifi_connect_req_params cnx_params;
 	
+	/* Set our connection parameters */
 	cnx_params.channel = WIFI_CHANNEL_ANY;
 	cnx_params.ssid = HAL_WIFI_SSID;
 	cnx_params.ssid_length = strlen(HAL_WIFI_SSID);
@@ -71,9 +75,11 @@ static void hal_wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 	const struct wifi_status *status =
 		(const struct wifi_status *) cb->info;
 
+	/* Switch which wifi event we just received */
 	switch (mgmt_event) {
 		case NET_EVENT_WIFI_CONNECT_RESULT:
 
+			/* Check the status */
 			if (!status->status) {
 
 				gpio_pin_set(hal_wifi_green_led_dev, HAL_WIFI_GREEN_LED_PIN, 1);
@@ -88,8 +94,6 @@ static void hal_wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 			LOG_INF("%d", status->status);
 			break;
 		case NET_EVENT_WIFI_DISCONNECT_RESULT:
-			
-			/* TODO: SEND DONE HERE */
 			break;
 		default:
 			break;
@@ -149,6 +153,7 @@ void hal_wifi_init(void) {
     /* Send the connect for the stuff */
 	hal_wifi_perform_connect();
 
+	/* Wait until we are connected to the WiFi */
 	while (hal_wifi_is_connected == 0) {
 		k_msleep(100);
 	}
