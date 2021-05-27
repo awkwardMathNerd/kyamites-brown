@@ -28,7 +28,11 @@ const struct device *hal_wifi_blue_led_dev = NULL;
 static struct net_mgmt_event_callback hal_wifi_mgmt_cb;
 
 /* Flag for whether or not the wifi is connected */
-volatile uint8_t hal_wifi_is_connected = 0;
+//volatile uint8_t hal_wifi_is_connected = 0;
+
+/* Semaphore to signal for connection and to retry connection */
+K_SEM_DEFINE(hal_wifi_is_connected, 0, 1);
+K_SEM_DEFINE(hal_wifi_retry_connection, 0, 1);
 
 /**
  * Send the Wifi connect message
@@ -49,11 +53,8 @@ void hal_wifi_perform_connect(void) {
 	cnx_params.psk_length = strlen(HAL_WIFI_PSK);
 
 	/* Try the connection */
-	if (net_mgmt(NET_REQUEST_WIFI_CONNECT, iface,
-		     &cnx_params, sizeof(struct wifi_connect_req_params))) {
-		
-		return;
-	}
+	int err = net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &cnx_params, sizeof(struct wifi_connect_req_params));
+	LOG_INF("Wifi request: %d", err);
 }
 
 /**
@@ -84,11 +85,11 @@ static void hal_wifi_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 
 				gpio_pin_set(hal_wifi_green_led_dev, HAL_WIFI_GREEN_LED_PIN, 1);
 				gpio_pin_set(hal_wifi_blue_led_dev, HAL_WIFI_BLUE_LED_PIN, 0);
-				hal_wifi_is_connected = 1;
+				k_sem_give(&hal_wifi_is_connected);
 			} else {
 
 				/* Rety the connect message */
-				hal_wifi_perform_connect();
+				k_sem_give(&hal_wifi_retry_connection);
 			}
 
 			LOG_INF("%d", status->status);
@@ -154,8 +155,16 @@ void hal_wifi_init(void) {
 	hal_wifi_perform_connect();
 
 	/* Wait until we are connected to the WiFi */
-	while (hal_wifi_is_connected == 0) {
-		k_msleep(100);
+	//while (hal_wifi_is_connected == 0) {
+	while (k_sem_take(&hal_wifi_is_connected, K_MSEC(100)) != 0) {
+
+		/* Check if we need to retry the connection */
+		if (k_sem_take(&hal_wifi_retry_connection, K_NO_WAIT) == 0) {
+
+			/* Wait some time and retry the connection */
+			k_msleep(100);
+			hal_wifi_perform_connect();
+		}
 	}
 
 	LOG_INF("WiFi is connected");

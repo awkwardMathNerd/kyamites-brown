@@ -31,8 +31,9 @@ typedef struct {
 
 /* Defines ---------------------------------------------------- */
 
-#define PPM_THRES                   750
-#define VENT_DURATION               120000      // 2 minutes
+#define PPM_THRES                   5000        // 5000 ppm
+#define VENT_DURATION               300000      // 5 minutes
+#define BOUYANCY_DELAY              5000        // 5 seconds
 
 #define PWR_NODE                    DT_ALIAS(pwr)
 #define PWR_LABEL                   DT_GPIO_LABEL(PWR_NODE, gpios)
@@ -363,6 +364,9 @@ void main(void) {
         if (err) {
             goto OFF;
         }
+
+        /* Wait a small amount of time for pressure to equalise */
+        k_sleep(K_MSEC(BOUYANCY_DELAY));
 
         err = close_valve(crickit);
         if (err) {
